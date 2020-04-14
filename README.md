@@ -7,7 +7,7 @@ Go M2M interface to Dyn/PigrecoOS
  
 ## Installation and usage
 ```
-import "github.com/modulo-srl/dyn-connector-go
+import "github.com/modulo-srl/dyn-connector-go"
 ```
 
 See `connector_test.go` for examples.
