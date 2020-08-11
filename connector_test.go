@@ -63,7 +63,7 @@ func TestConnector(t *testing.T) {
 	  dataReceive := map[string]interface{}{}
 	*/
 
-	err := conn.Send("echo", dataSend, &dataReceive)
+	err := conn.Send("test/echo", dataSend, &dataReceive)
 	if err != nil {
 		t.Error(err)
 		return
@@ -93,7 +93,7 @@ func TestConnectorAuth(t *testing.T) {
 	  dataReceive := map[string]interface{}{}
 	*/
 
-	err := conn.Send("echo/auth", dataSend, &dataReceive)
+	err := conn.Send("auth/test/echo", dataSend, &dataReceive)
 	if err != nil {
 		t.Error(err)
 		return
