@@ -5,19 +5,19 @@ import (
 	"testing"
 )
 
-// Session persistor
-type testSession struct {
-	sessionToken string
+// Tokens persistor
+type testPersistor struct {
+	accessToken string
 }
 
-func (s *testSession) GetSessionToken() string {
-	fmt.Println("get session token \"" + s.sessionToken + "\"")
-	return s.sessionToken
+func (s *testPersistor) GetAccessToken() string {
+	fmt.Println("get access token \"" + s.accessToken + "\"")
+	return s.accessToken
 }
 
-func (s *testSession) SetSessionToken(token string) {
-	s.sessionToken = token
-	fmt.Println("set session token \"" + s.sessionToken + "\"")
+func (s *testPersistor) SetAccessToken(token string) {
+	s.accessToken = token
+	fmt.Println("set access token \"" + s.accessToken + "\"")
 }
 
 // Test data to send and receive
@@ -33,14 +33,13 @@ type testSubData struct {
 
 func newConnector() *Connector {
 	domain := "test.modulo.srl"
+	clientID := "test"
+	clientSecret := "test"
 
-	authUID := "test"
-	masterToken := "test"
+	persistor := testPersistor{}
+	conn := NewConnector(domain, clientID, clientSecret, &persistor)
 
-	session := testSession{}
-	conn := NewConnector(domain, authUID, masterToken, &session)
-
-	// Enable debugging output (please disable in production)
+	// Enable debugging output (should be disabled in production)
 	conn.SetDebug(true, nil, false)
 
 	return conn

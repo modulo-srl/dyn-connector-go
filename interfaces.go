@@ -2,39 +2,39 @@ package connector
 
 import "fmt"
 
-// SessionPersistor mantains the token persistent
-type SessionPersistor interface {
-	GetSessionToken() string
-	SetSessionToken(string)
+// TokensPersistor mantains the tokens persistent
+type TokensPersistor interface {
+	GetAccessToken() string
+	SetAccessToken(string)
 }
 
 // ResponseError with error codes
 type ResponseError struct {
-	Code   int    `json:"code"`
-	Reason string `json:"reason"`
+	ID     string `json:"error"`
+	Reason string `json:"error_description"`
 }
 
 func (err *ResponseError) Error() string {
-	return fmt.Sprintf("[%v] %v", err.Code, err.Reason)
+	return fmt.Sprintf("[%v] %v", err.ID, err.Reason)
 }
 
-// ResponseError.Code
+// ResponseError.ID
 const (
-	ErrorHTTP         = -1
-	ErrorDecode       = -2
-	ErrorAuthInternal = -10
+	ErrorInternal        = "internal"         // Connector error
+	ErrorNetwork         = "network"          // Network error
+	ErrorInvalidResponse = "invalid_response" // Server response cannot be decoded
+	ErrorUnauthorized    = "unauthorized"     // Auth error
 )
 
-type responseErrorContainer struct {
-	Error ResponseError `json:"error"`
-}
-
 type authRequest struct {
-	UID         string `json:"uid"`
-	MasterToken string `json:"master_token"`
+	GrantType    string `json:"grant_type"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
 }
 
 type authResponse struct {
-	Auth         bool   `json:"auth"`
-	SessionToken string `json:"session_token"`
+	AccessToken string `json:"access_token"`
+
+	ErrorID     string `json:"error"`
+	ErrorReason string `json:"error_description"`
 }

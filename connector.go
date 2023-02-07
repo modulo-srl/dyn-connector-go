@@ -12,27 +12,33 @@ import (
 type Connector struct {
 	Debug bool
 
-	host        string
-	authUID     string
-	masterToken string
+	host string
 
-	session      SessionPersistor
-	sessionToken string
+	clientID     string
+	clientSecret string
+
+	persistor   TokensPersistor
+	accessToken string
 
 	customHTTPheader map[string]string
 	protocolByHost   bool
 }
 
+const (
+	URLApi         = "/api/"
+	URLAccessToken = "auth/token"
+)
+
 // NewConnector make a new Dyn Connector
-func NewConnector(host, authUID, masterToken string, session SessionPersistor) *Connector {
+func NewConnector(host, clientID, clientSecret string, persistor TokensPersistor) *Connector {
 	conn := Connector{
-		host:        host,
-		authUID:     authUID,
-		masterToken: masterToken,
+		host:         host,
+		clientID:     clientID,
+		clientSecret: clientSecret,
 	}
 
-	conn.session = session
-	conn.sessionToken = conn.session.GetSessionToken()
+	conn.persistor = persistor
+	conn.accessToken = conn.persistor.GetAccessToken()
 
 	return &conn
 }
@@ -52,10 +58,13 @@ func (c *Connector) Send(operation string, dataSend, dataReceive interface{}) *R
 
 	err := c.sendRequest(operation, dataSend, dataReceive)
 	if err != nil {
-		switch err.Code {
-		case 70: // Authentication needed, try to login
+		switch err.ID {
+
+		case ErrorUnauthorized:
+			// Authentication needed
+
 			if c.Debug {
-				fmt.Println("[authentication needed, try to login...]")
+				fmt.Println("[authentication needed, try to get access token...]")
 			}
 
 			err := c.doAuth()
@@ -65,7 +74,7 @@ func (c *Connector) Send(operation string, dataSend, dataReceive interface{}) *R
 
 			// Retry request
 			if c.Debug {
-				fmt.Println("[authentication done, session token \"" + c.sessionToken + "\"]")
+				fmt.Println("[authentication done, access token \"" + c.accessToken + "\"]")
 				fmt.Println("[resend request \"" + operation + "\"]")
 			}
 
@@ -83,29 +92,30 @@ func (c *Connector) Send(operation string, dataSend, dataReceive interface{}) *R
 }
 
 func (c *Connector) doAuth() *ResponseError {
-	c.sessionToken = ""
+	c.accessToken = ""
 
 	req := authRequest{
-		UID:         c.authUID,
-		MasterToken: c.masterToken,
+		GrantType:    "client_credentials",
+		ClientID:     c.clientID,
+		ClientSecret: c.clientSecret,
 	}
 
 	resp := authResponse{}
 
-	err := c.sendRequest("auth", req, &resp)
+	err := c.sendRequest(URLAccessToken, req, &resp)
 	if err != nil {
 		return err
 	}
 
-	if !resp.Auth {
+	if resp.AccessToken == "" {
 		return &ResponseError{
-			Code:   -10,
-			Reason: "invalid auth response",
+			ID:     resp.ErrorID,
+			Reason: resp.ErrorReason,
 		}
 	}
 
-	c.sessionToken = resp.SessionToken
-	c.session.SetSessionToken(c.sessionToken)
+	c.accessToken = resp.AccessToken
+	c.persistor.SetAccessToken(c.accessToken)
 	return nil
 }
 
@@ -116,7 +126,7 @@ func (c *Connector) sendRequest(operation string, dataSend, dataReceive interfac
 	if !c.protocolByHost {
 		url = "https://"
 	}
-	url += c.host + "/api/" + operation
+	url += c.host + URLApi + operation
 
 	if c.Debug {
 		fmt.Println("[make POST to", url, "]")
@@ -129,7 +139,7 @@ func (c *Connector) sendRequest(operation string, dataSend, dataReceive interfac
 	requestBody, err = json.Marshal(dataSend)
 	if err != nil {
 		return &ResponseError{
-			Code:   -1,
+			ID:     ErrorInternal,
 			Reason: err.Error(),
 		}
 	}
@@ -140,7 +150,7 @@ func (c *Connector) sendRequest(operation string, dataSend, dataReceive interfac
 	httpReq, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return &ResponseError{
-			Code:   -1,
+			ID:     ErrorInternal,
 			Reason: err.Error(),
 		}
 	}
@@ -151,14 +161,15 @@ func (c *Connector) sendRequest(operation string, dataSend, dataReceive interfac
 			httpReq.Header.Set(key, value)
 		}
 	}
-	if operation != "auth" && c.sessionToken != "" {
-		httpReq.Header.Set("Session-Token", c.sessionToken)
+
+	if operation != URLAccessToken && c.accessToken != "" {
+		httpReq.Header.Set("authorization", "Bearer "+c.accessToken)
 	}
 
 	httpResp, err := client.Do(httpReq)
 	if err != nil {
 		return &ResponseError{
-			Code:   -1,
+			ID:     ErrorNetwork,
 			Reason: err.Error(),
 		}
 	}
@@ -169,29 +180,28 @@ func (c *Connector) sendRequest(operation string, dataSend, dataReceive interfac
 		fmt.Printf("[server raw response: `%s`\n", string(body))
 	}*/
 
-	_, ok := httpResp.Header["Error"]
-	if ok {
+	if httpResp.StatusCode != 200 {
 		/*if c.Debug {
-			fmt.Println("[decode error]")
+			fmt.Println("[response error]")
 		}*/
 
-		rErr := responseErrorContainer{}
+		rErr := ResponseError{}
 		err = json.NewDecoder(httpResp.Body).Decode(&rErr)
 		if err != nil {
 			return &ResponseError{
-				Code:   -2,
+				ID:     ErrorInvalidResponse,
 				Reason: err.Error(),
 			}
 		}
 		//fmt.Println(rErr)
-		return &rErr.Error
+		return &rErr
 	}
 
 	//err := json.Unmarshal(body, &dataReceive)
 	err = json.NewDecoder(httpResp.Body).Decode(&dataReceive)
 	if err != nil {
 		return &ResponseError{
-			Code:   -2,
+			ID:     ErrorInvalidResponse,
 			Reason: err.Error(),
 		}
 	}
