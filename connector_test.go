@@ -104,3 +104,28 @@ func TestConnectorAuth(t *testing.T) {
 
 	fmt.Println("Server response:", dataReceive)
 }
+
+func TestRemoteLogin(t *testing.T) {
+	conn := newConnector()
+
+	dataSend := struct {
+		FiscalCode string `json:"fiscal_code"`
+	}{
+		FiscalCode: "enter-fiscal-code",
+	}
+	dataReceive := struct {
+		AccessURL string `json:"access_url"`
+	}{}
+
+	err := conn.Send("remote-login", dataSend, &dataReceive)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if dataReceive.AccessURL == "" {
+		t.Error("access URL not found")
+		return
+	}
+
+	fmt.Println("Server response:", dataReceive)
+}
