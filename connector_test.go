@@ -109,9 +109,9 @@ func TestRemoteLogin(t *testing.T) {
 	conn := newConnector()
 
 	dataSend := struct {
-		FiscalCode string `json:"fiscal_code"`
+		TaxCode string `json:"tax_code"`
 	}{
-		FiscalCode: "enter-fiscal-code",
+		TaxCode: "codice fiscale",
 	}
 	dataReceive := struct {
 		AccessURL string `json:"access_url"`
