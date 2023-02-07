@@ -109,8 +109,9 @@ func (c *Connector) doAuth() *ResponseError {
 
 	if resp.AccessToken == "" {
 		return &ResponseError{
-			ID:     resp.ErrorID,
-			Reason: resp.ErrorReason,
+			ID:       resp.ErrorID,
+			Reason:   resp.ErrorReason,
+			HTTPCode: 200,
 		}
 	}
 
@@ -189,11 +190,15 @@ func (c *Connector) sendRequest(operation string, dataSend, dataReceive interfac
 		err = json.NewDecoder(httpResp.Body).Decode(&rErr)
 		if err != nil {
 			return &ResponseError{
-				ID:     ErrorInvalidResponse,
-				Reason: err.Error(),
+				ID:       ErrorInvalidResponse,
+				Reason:   err.Error(),
+				HTTPCode: httpResp.StatusCode,
 			}
 		}
+
+		rErr.HTTPCode = httpResp.StatusCode
 		//fmt.Println(rErr)
+
 		return &rErr
 	}
 
@@ -201,8 +206,9 @@ func (c *Connector) sendRequest(operation string, dataSend, dataReceive interfac
 	err = json.NewDecoder(httpResp.Body).Decode(&dataReceive)
 	if err != nil {
 		return &ResponseError{
-			ID:     ErrorInvalidResponse,
-			Reason: err.Error(),
+			ID:       ErrorInvalidResponse,
+			Reason:   err.Error(),
+			HTTPCode: httpResp.StatusCode,
 		}
 	}
 

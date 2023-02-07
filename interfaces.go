@@ -10,12 +10,17 @@ type TokensPersistor interface {
 
 // ResponseError with error codes
 type ResponseError struct {
-	ID     string `json:"error"`
-	Reason string `json:"error_description"`
+	ID       string `json:"error"`
+	Reason   string `json:"error_description"`
+	HTTPCode int
 }
 
 func (err *ResponseError) Error() string {
-	return fmt.Sprintf("[%v] %v", err.ID, err.Reason)
+	if err.HTTPCode > 0 {
+		return fmt.Sprintf("HTTP %d [%v] %v", err.HTTPCode, err.ID, err.Reason)
+	} else {
+		return fmt.Sprintf("[%v] %v", err.ID, err.Reason)
+	}
 }
 
 // ResponseError.ID
