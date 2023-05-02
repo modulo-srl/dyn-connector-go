@@ -20,6 +20,7 @@ type Connector struct {
 	persistor   TokensPersistor
 	accessToken string
 
+	userAgent        string
 	customHTTPheader map[string]string
 	protocolByHost   bool
 }
@@ -41,6 +42,11 @@ func NewConnector(host, clientID, clientSecret string, persistor TokensPersistor
 	conn.accessToken = conn.persistor.GetAccessToken()
 
 	return &conn
+}
+
+// SetUserAgent optionally sets the User-Agent header for future requests.
+func (c *Connector) SetUserAgent(userAgent string) {
+	c.userAgent = userAgent
 }
 
 // SetDebug enable or disable debug and internal params
@@ -154,6 +160,10 @@ func (c *Connector) sendRequest(operation string, dataSend, dataReceive interfac
 			ID:     ErrorInternal,
 			Reason: err.Error(),
 		}
+	}
+
+	if c.userAgent != "" {
+		httpReq.Header.Set("User-Agent", c.userAgent)
 	}
 
 	httpReq.Header.Set("Content-type", "application/json")
